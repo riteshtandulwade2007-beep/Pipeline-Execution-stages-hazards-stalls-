@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CPU Pipeline Execution Simulator</title>
+
+<style>
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #0b1020;
+    color: #edf2ff;
+}
+
+header {
+    padding: 25px 6%;
+    background: #121b32;
+    border-bottom: 1px solid #293858;
+}
+
+h1 { color: #66e3ff; }
+h2 { color: #75e6ff; }
+
+header p { color: #b4c3df; }
+
+main {
+    max-width: 1100px;
+    margin: auto;
+    padding: 24px;
+}
+
+.panel {
+    background: #141e35;
+    border: 1px solid #2b3c60;
+    border-radius: 15px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+}
+
+.block {
+    border: 1px solid #5a80bd;
+    background: #1c2c4c;
+    padding: 15px 8px;
+    border-radius: 10px;
+    text-align: center;
+}
+
+.active {
+    background: #087e8b;
+    box-shadow: 0 0 15px #35d9ff80;
+}
+
+.value {
+    font-size: 20px;
+    font-weight: bold;
+    color: #7cf0ce;
+    margin-top: 8px;
+}
+
+button {
+    background: #16b8c9;
+    color: #071525;
+    border: 0;
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-weight: bold;
+    cursor: pointer;
+    margin: 4px;
+}
+
+button:hover { background: #71e8f0; }
+
+button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+select {
+    padding: 10px;
+    border-radius: 8px;
+    background: #10182b;
+    color: white;
+}
+
+.status {
+    color: #7cf0ce;
+    font-weight: bold;
+}
+
+#log {
+    white-space: pre-line;
+    color: #c9d6f2;
+    line-height: 1.8;
+}
+
+footer {
+    text-align: center;
+    padding: 20px;
+    color: #91a3c4;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+    <h1>CPU Pipeline Execution</h1>
+    <p>Interactive Simulator | Fetch • Decode • Execute • Memory • Write Back</p>
+</header>
+
+<main>
+
+<section class="panel">
+    <h2>What is Pipeline Execution?</h2>
+    <p>
+        Pipelining allows the CPU to process different instructions
+        in overlapping stages. This improves instruction throughput.
+    </p>
+
+    <div class="grid">
+        <div class="block">
+            <h3>1. Fetch (IF)</h3>
+            Get the instruction from memory.
+        </div>
+
+        <div class="block">
+            <h3>2. Decode (ID)</h3>
+            Understand the instruction.
+        </div>
+
+        <div class="block">
+            <h3>3. Execute (EX)</h3>
+            Perform the operation.
+        </div>
+
+        <div class="block">
+            <h3>4. Memory (MEM)</h3>
+            Access data memory if required.
+        </div>
+
+        <div class="block">
+            <h3>5. Write Back (WB)</h3>
+            Save the result in a register.
+        </div>
+    </div>
+</section>
+
+<section class="panel">
+    <h2>Pipeline Architecture</h2>
+
+    <div class="grid">
+        <div class="block" id="stage0">
+            <h3>IF</h3>
+            <div class="value" id="if">---</div>
+        </div>
+
+        <div class="block" id="stage1">
+            <h3>ID</h3>
+            <div class="value" id="id">---</div>
+        </div>
+
+        <div class="block" id="stage2">
+            <h3>EX</h3>
+            <div class="value" id="ex">---</div>
+        </div>
+
+        <div class="block" id="stage3">
+            <h3>MEM</h3>
+            <div class="value" id="mem">---</div>
+        </div>
+
+        <div class="block" id="stage4">
+            <h3>WB</h3>
+            <div class="value" id="wb">---</div>
+        </div>
+    </div>
+
+    <p class="status" id="phase">Ready to start</p>
+    <p id="explanation">
+        Press Start to see how instructions move through the pipeline.
+    </p>
+</section>
+
+<section class="panel">
+    <h2>Run the Simulation</h2>
+
+    <label for="program">Select program:</label>
+    <select id="program">
+        <option value="add">ADD R1, R2, R3</option>
+        <option value="sub">SUB R4, R5, R6</option>
+        <option value="mix">ADD R1, R2, R3 and SUB R4, R5, R6</option>
+    </select>
+
+    <p>
+        <button id="start">Start / Restart</button>
+        <button id="next" disabled>Next Cycle</button>
+        <button id="run" disabled>Run All</button>
+        <button id="reset">Reset</button>
+    </p>
+
+    <p id="progress">Clock Cycle: 0</p>
+    <div id="log">Simulation log will appear here.</div>
+</section>
+
+<section class="panel">
+    <h2>Pipeline Results</h2>
+    <div id="results">No instructions completed yet.</div>
+</section>
+
+<section class="panel">
+    <h2>Test Your Knowledge</h2>
+    <p>Which stage performs the arithmetic operation?</p>
+
+    <button onclick="answer(0)">Fetch</button>
+    <button onclick="answer(1)">Execute</button>
+    <button onclick="answer(2)">Write Back</button>
+
+    <p id="quizresult"></p>
+</section>
+
+</main>
+
+<footer>
+    CPU Pipeline Execution Simulator • Educational Project
+</footer>
+
+<script>
+const $ = id => document.getElementById(id);
+
+let instructions = [];
+let cycle = 0;
+let started = false;
+let timer = null;
+
+const stages = ["IF", "ID", "EX", "MEM", "WB"];
+let pipeline = [null, null, null, null, null];
+let completed = [];
+
+function makeProgram() {
+    const choice = $("program").value;
+
+    if (choice === "add") {
+        return ["ADD R1,R2,R3"];
+    }
+
+    if (choice === "sub") {
+        return ["SUB R4,R5,R6"];
+    }
+
+    return [
+        "ADD R1,R2,R3",
+        "SUB R4,R5,R6",
+        "LOAD R7,[100]",
+        "STORE R7,[104]"
+    ];
+}
+
+function reset() {
+    clearTimeout(timer);
+
+    instructions = makeProgram();
+    cycle = 0;
+    started = false;
+    pipeline = [null, null, null, null, null];
+    completed = [];
+
+    $("start").disabled = false;
+    $("next").disabled = true;
+    $("run").disabled = true;
+
+    $("phase").textContent = "Ready to start";
+    $("explanation").textContent =
+        "Start the simulation to move instructions through five stages.";
+
+    $("log").textContent = "Ready. Press Start to begin.";
+    $("progress").textContent = "Clock Cycle: 0";
+    $("results").textContent = "No instructions completed yet.";
+
+    render();
+}
+
+function render() {
+    stages.forEach((stage, i) => {
+        $("stage" + i).classList.remove("active");
+        $(stage.toLowerCase()).textContent =
+            pipeline[i] === null ? "---" : pipeline[i];
+    });
+
+    $("progress").textContent = "Clock Cycle: " + cycle;
+
+    $("results").textContent = completed.length
+        ? "Completed instructions:\n" + completed.join("\n")
+        : "No instructions completed yet.";
+}
+
+function start() {
+    reset();
+    started = true;
+    $("start").disabled = true;
+    $("next").disabled = false;
+    $("run").disabled = false;
+
+    $("log").textContent = "Pipeline program loaded.\n";
+    nextCycle();
+}
+
+function nextCycle() {
+    if (!started) return;
+
+    if (completed.length === instructions.length) {
+        finish();
+        return;
+    }
+
+    cycle++;
+
+    // Move instructions forward by one pipeline stage.
+    const finished = pipeline[4];
+
+    for (let i = 4; i > 0; i--) {
+        pipeline[i] = pipeline[i - 1];
+    }
+
+    pipeline[0] = instructions[cycle - 1] || null;
+
+    if (finished !== null && finished !== undefined) {
+        completed.push(finished);
+    }
+
+    render();
+
+    // Highlight occupied stages.
+    pipeline.forEach((instruction, i) => {
+        if (instruction !== null) {
+            $("stage" + i).classList.add("active");
+        }
+    });
+
+    const occupied = pipeline
+        .map((instruction, i) =>
+            instruction ? stages[i] + ": " + instruction : null
+        )
+        .filter(Boolean);
+
+    $("phase").textContent = "Clock Cycle " + cycle;
+
+    $("explanation").textContent = occupied.length
+        ? "Instructions are progressing through the pipeline."
+        : "Pipeline is empty.";
+
+    $("log").textContent +=
+        "\nCycle " + cycle + ": " +
+        (occupied.join(" | ") || "No active instruction");
+
+    if (completed.length === instructions.length) {
+        finish();
+    }
+}
+
+function finish() {
+    started = false;
+    clearTimeout(timer);
+
+    $("phase").textContent = "Pipeline Completed!";
+    $("explanation").textContent =
+        "All instructions have passed through the pipeline.";
+
+    $("log").textContent += "\n\nAll instructions completed.";
+
+    $("next").disabled = true;
+    $("run").disabled = true;
+    $("start").disabled = false;
+}
+
+function runAll() {
+    if (!started) return;
+
+    $("next").disabled = true;
+    $("run").disabled = true;
+
+    function loop() {
+        if (!started) return;
+
+        nextCycle();
+
+        if (started) {
+            timer = setTimeout(loop, 800);
+        }
+    }
+
+    loop();
+}
+
+function answer(n) {
+    $("quizresult").textContent = n === 1
+        ? "Correct! The Execute stage performs arithmetic and logic operations."
+        : "Try again. The Execute stage performs arithmetic operations.";
+}
+
+$("start").onclick = start;
+$("next").onclick = nextCycle;
+$("run").onclick = runAll;
+$("reset").onclick = reset;
+$("program").onchange = reset;
+
+reset();
+</script>
+
+</body>
+</html>
